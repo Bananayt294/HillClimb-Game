@@ -20,13 +20,13 @@ func _physics_process(delta: float) -> void:
 		is_starting_jump = false
 
 	# 2. Handle jump input
-	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
+	if Input.is_action_just_pressed("Jump") and is_on_floor():
 		velocity.y = JUMP_VELOCITY
 		is_starting_jump = true
 		anim.play("JUMP_START")
 
 	# 3. Handle horizontal movement
-	var direction := Input.get_axis("ui_left", "ui_right")
+	var direction := Input.get_axis("Walk forward", "Walk Backward")
 	if direction:
 		velocity.x = direction * SPEED
 		anim.flip_h = direction < 0
