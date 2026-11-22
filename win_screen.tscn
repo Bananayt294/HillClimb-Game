@@ -1,0 +1,49 @@
+[gd_scene format=3 uid="uid://dssxhdslgollt"]
+
+[ext_resource type="Script" uid="uid://c13hnpy6syqmu" path="res://win_screen.gd" id="1_l2arl"]
+
+[node name="WinScreen" type="CanvasLayer" unique_id=99522459]
+script = ExtResource("1_l2arl")
+
+[node name="Control" type="Control" parent="." unique_id=1927850266]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ColorRect" type="ColorRect" parent="Control" unique_id=1219300556]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="Control" unique_id=1083133201]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Control/CenterContainer" unique_id=1791852634]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="Control/CenterContainer/VBoxContainer" unique_id=390362374]
+layout_mode = 2
+text = "YOU WIN!"
+
+[node name="SubtitleLabel" type="Label" parent="Control/CenterContainer/VBoxContainer" unique_id=1313252730]
+layout_mode = 2
+text = "The boss has been defeated!"
+
+[node name="RestartButton" type="Button" parent="Control/CenterContainer/VBoxContainer" unique_id=981129124]
+layout_mode = 2
+text = "PLAY AGAIN"

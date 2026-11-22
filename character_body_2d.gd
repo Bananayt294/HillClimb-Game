@@ -1,17 +1,10 @@
 
 extends CharacterBody2D
 
-# ==========================================
-# MOVEMENT & JUMP
-# ==========================================
-
 const SPEED = 180.0
 const JUMP_VELOCITY = -340.0
 const APEX_THRESHOLD = 45.0
 
-# ==========================================
-# CLIMBING & WALL PHYSICS
-# ==========================================
 
 const WALL_SLIDE_SPEED = 55.0
 const WALL_JUMP_VELOCITY = Vector2(240.0, -330.0)
@@ -20,19 +13,11 @@ const CLIMB_SPEED = 105.0
 const MAX_STAMINA = 100.0
 const STAMINA_DRAIN = 28.0
 
-# ==========================================
-# HEALTH & DAMAGE
-# ==========================================
-
 @export var MAX_HEALTH: float = 100.0
 
 const SAFE_FALL_SPEED = 520.0
 const FALL_DAMAGE_MULTIPLIER = 0.12
 const INVULNERABILITY_TIME = 0.8
-
-# ==========================================
-# MELEE COMBAT
-# ==========================================
 
 @export var attack_damage: float = 25.0
 @export var attack_hit_frame: int = 2
@@ -46,24 +31,13 @@ var is_attacking: bool = false
 var attack_hit_applied: bool = false
 var attack_target: Node2D = null
 
-# ==========================================
-# GAME FEEL TIMERS
-# ==========================================
-
 const COYOTE_TIME = 0.1
 const JUMP_BUFFER_TIME = 0.1
 
-# ==========================================
-# NODES
-# ==========================================
 
 @onready var anim: AnimatedSprite2D = $AnimatedSprite2D
 @onready var health_bar: ProgressBar = $AnimatedSprite2D/CanvasLayer/ProgressBar
 @onready var attack_area: Area2D = $Hitbox
-
-# ==========================================
-# VARIABLES
-# ==========================================
 
 var health: float = MAX_HEALTH
 var stamina: float = MAX_STAMINA
@@ -80,11 +54,6 @@ var invuln_timer: float = 0.0
 
 var max_fall_speed: float = 0.0
 
-
-# ==========================================
-# READY
-# ==========================================
-
 func _ready() -> void:
 
 	anim.animation_finished.connect(_on_animation_finished)
@@ -94,14 +63,11 @@ func _ready() -> void:
 
 	health_bar.max_value = MAX_HEALTH
 	health_bar.value = health
+	add_to_group("player")
 
 	# Hitbox is only active during melee attacks
 	attack_area.monitoring = false
 
-
-# ==========================================
-# DAMAGE SYSTEM
-# ==========================================
 
 func take_damage(amount: float, use_iframes: bool = true) -> void:
 
@@ -133,10 +99,6 @@ func take_damage(amount: float, use_iframes: bool = true) -> void:
 		die()
 
 
-# ==========================================
-# HEALING
-# ==========================================
-
 func heal(amount: float) -> void:
 
 	if is_dead:
@@ -145,10 +107,6 @@ func heal(amount: float) -> void:
 	health = clampf(health + amount, 0.0, MAX_HEALTH)
 	health_bar.value = health
 
-
-# ==========================================
-# DEATH
-# ==========================================
 
 func die() -> void:
 
@@ -161,10 +119,6 @@ func die() -> void:
 
 	get_tree().reload_current_scene()
 
-
-# ==========================================
-# START MELEE ATTACK
-# ==========================================
 
 func start_melee_attack() -> void:
 
@@ -187,10 +141,6 @@ func start_melee_attack() -> void:
 	anim.play(ATTACK_ANIMATION)
 
 
-# ==========================================
-# HITBOX DETECTION
-# ==========================================
-
 func _on_hitbox_body_entered(body: Node2D) -> void:
 
 	if body == self:
@@ -205,10 +155,6 @@ func _on_hitbox_body_exited(body: Node2D) -> void:
 	if body == attack_target:
 		attack_target = null
 
-
-# ==========================================
-# APPLY MELEE DAMAGE
-# ==========================================
 
 func _on_attack_frame_changed() -> void:
 
@@ -237,10 +183,6 @@ func _on_attack_frame_changed() -> void:
 			print("Player dealt ", attack_damage, " damage to boss!")
 
 
-# ==========================================
-# PHYSICS PROCESS
-# ==========================================
-
 func _physics_process(delta: float) -> void:
 
 	if is_dead:
@@ -253,10 +195,6 @@ func _physics_process(delta: float) -> void:
 
 	var dir_x := Input.get_axis("Walk Backward", "Walk forward")
 	var dir_y := Input.get_axis("Jump", "ui_down")
-
-	# --------------------------------------
-	# 1. UPDATE TIMERS
-	# --------------------------------------
 
 	if invuln_timer > 0.0:
 		invuln_timer = maxf(invuln_timer - delta, 0.0)
@@ -293,10 +231,7 @@ func _physics_process(delta: float) -> void:
 	if wall_jump_lock_timer > 0.0:
 		wall_jump_lock_timer -= delta
 
-	# --------------------------------------
-	# 2. WALL GRAB & CLIMBING
-	# --------------------------------------
-
+	
 	var wants_to_climb := (
 		not is_attacking
 		and Input.is_action_pressed("climb")
@@ -324,10 +259,6 @@ func _physics_process(delta: float) -> void:
 
 		is_climbing = false
 
-	# --------------------------------------
-	# 3. GRAVITY & WALL SLIDE
-	# --------------------------------------
-
 	if not is_climbing:
 
 		if not is_on_floor():
@@ -350,10 +281,6 @@ func _physics_process(delta: float) -> void:
 			else:
 
 				velocity += get_gravity() * delta
-
-		# ----------------------------------
-		# 4. HORIZONTAL MOVEMENT
-		# ----------------------------------
 
 		if wall_jump_lock_timer <= 0.0:
 
@@ -383,10 +310,6 @@ func _physics_process(delta: float) -> void:
 					0.0,
 					20.0
 				)
-
-	# --------------------------------------
-	# 5. GROUND JUMP & WALL JUMP
-	# --------------------------------------
 
 	if jump_buffer_timer > 0.0 and not is_attacking:
 
@@ -421,10 +344,6 @@ func _physics_process(delta: float) -> void:
 
 			stamina -= 15.0
 
-	# --------------------------------------
-	# 6. VARIABLE JUMP HEIGHT
-	# --------------------------------------
-
 	if (
 		Input.is_action_just_released("Jump")
 		and velocity.y < -80.0
@@ -432,22 +351,10 @@ func _physics_process(delta: float) -> void:
 
 		velocity.y *= 0.55
 
-	# --------------------------------------
-	# 7. MOVEMENT
-	# --------------------------------------
-
 	move_and_slide()
-
-	# --------------------------------------
-	# 8. ANIMATIONS
-	# --------------------------------------
 
 	update_animations(dir_x, dir_y)
 
-
-# ==========================================
-# ANIMATION SYSTEM
-# ==========================================
 
 func update_animations(dir_x: float, dir_y: float) -> void:
 
@@ -484,11 +391,6 @@ func update_animations(dir_x: float, dir_y: float) -> void:
 
 	else:
 		anim.play("JUMP_FALL")
-
-
-# ==========================================
-# ANIMATION FINISHED
-# ==========================================
 
 func _on_animation_finished() -> void:
 
