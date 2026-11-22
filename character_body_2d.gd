@@ -1,10 +1,10 @@
-
 extends CharacterBody2D
+
+signal parry_succeeded(attacker: Node2D)
 
 const SPEED = 180.0
 const JUMP_VELOCITY = -340.0
 const APEX_THRESHOLD = 45.0
-
 
 const WALL_SLIDE_SPEED = 55.0
 const WALL_JUMP_VELOCITY = Vector2(240.0, -330.0)
@@ -19,21 +19,27 @@ const SAFE_FALL_SPEED = 520.0
 const FALL_DAMAGE_MULTIPLIER = 0.12
 const INVULNERABILITY_TIME = 0.8
 
+const PARRY_WINDOW = 0.20
+const PARRY_COOLDOWN = 0.45
+const PARRY_IFRAMES = 0.15
+
 @export var attack_damage: float = 25.0
 @export var attack_hit_frame: int = 2
 
-# Distance of melee hitbox from player center
 @export var attack_range_offset: float = 24.0
 
 const ATTACK_ANIMATION = "Attack"
+
+const COYOTE_TIME = 0.1
+const JUMP_BUFFER_TIME = 0.1
 
 var is_attacking: bool = false
 var attack_hit_applied: bool = false
 var attack_target: Node2D = null
 
-const COYOTE_TIME = 0.1
-const JUMP_BUFFER_TIME = 0.1
-
+var is_parrying: bool = false
+var parry_timer: float = 0.0
+var parry_cooldown_timer: float = 0.0
 
 @onready var anim: AnimatedSprite2D = $AnimatedSprite2D
 @onready var health_bar: ProgressBar = $AnimatedSprite2D/CanvasLayer/ProgressBar
@@ -54,6 +60,7 @@ var invuln_timer: float = 0.0
 
 var max_fall_speed: float = 0.0
 
+
 func _ready() -> void:
 
 	anim.animation_finished.connect(_on_animation_finished)
@@ -63,15 +70,24 @@ func _ready() -> void:
 
 	health_bar.max_value = MAX_HEALTH
 	health_bar.value = health
+
 	add_to_group("player")
 
-	# Hitbox is only active during melee attacks
 	attack_area.monitoring = false
 
 
-func take_damage(amount: float, use_iframes: bool = true) -> void:
+func take_damage(
+	amount: float,
+	use_iframes: bool = true,
+	attacker: Node2D = null
+) -> void:
 
 	if is_dead:
+		return
+
+	if is_parrying and use_iframes:
+
+		successful_parry(attacker)
 		return
 
 	if use_iframes and invuln_timer > 0.0:
@@ -85,18 +101,35 @@ func take_damage(amount: float, use_iframes: bool = true) -> void:
 	if use_iframes:
 		invuln_timer = INVULNERABILITY_TIME
 
-	# Cancel current attack if interrupted
 	is_attacking = false
 	attack_area.set_deferred("monitoring", false)
 	attack_target = null
 
-	# Play Hurt animation
 	is_hurt = true
 	anim.speed_scale = 1.0
 	anim.play("Hurt")
 
 	if health <= 0.0:
 		die()
+
+
+func successful_parry(attacker: Node2D = null) -> void:
+
+	if not is_parrying:
+		return
+
+	is_parrying = false
+	parry_timer = 0.0
+
+	invuln_timer = maxf(invuln_timer, PARRY_IFRAMES)
+
+	print("PARRY SUCCESS!")
+
+	parry_succeeded.emit(attacker)
+
+	if is_instance_valid(attacker):
+		if attacker.has_method("on_parried"):
+			attacker.call("on_parried")
 
 
 func heal(amount: float) -> void:
@@ -122,19 +155,17 @@ func die() -> void:
 
 func start_melee_attack() -> void:
 
-	if is_attacking or is_hurt or is_dead or is_climbing:
+	if is_attacking or is_hurt or is_dead or is_climbing or is_parrying:
 		return
 
 	is_attacking = true
 	attack_hit_applied = false
 	attack_target = null
 
-	# Position hitbox in front of player
 	var facing := -1.0 if anim.flip_h else 1.0
 
 	attack_area.position.x = attack_range_offset * facing
 
-	# Enable hitbox only during attack
 	attack_area.monitoring = true
 
 	anim.speed_scale = 1.0
@@ -167,11 +198,9 @@ func _on_attack_frame_changed() -> void:
 	if anim.animation != ATTACK_ANIMATION:
 		return
 
-	# Wait until weapon connects
 	if anim.frame != attack_hit_frame:
 		return
 
-	# Only one hit per swing
 	attack_hit_applied = true
 
 	if is_instance_valid(attack_target):
@@ -188,16 +217,57 @@ func _physics_process(delta: float) -> void:
 	if is_dead:
 		return
 
-	# Attack input
+	if parry_cooldown_timer > 0.0:
+		parry_cooldown_timer = maxf(
+			parry_cooldown_timer - delta,
+			0.0
+		)
+
+	if is_parrying:
+
+		parry_timer -= delta
+
+		if parry_timer <= 0.0:
+
+			is_parrying = false
+			parry_timer = 0.0
+
+			print("Parry missed!")
+
+	if invuln_timer > 0.0:
+		invuln_timer = maxf(invuln_timer - delta, 0.0)
+
+	if Input.is_action_just_pressed("block"):
+
+		if (
+			not is_hurt
+			and not is_attacking
+			and not is_climbing
+			and not is_parrying
+			and parry_cooldown_timer <= 0.0
+		):
+
+			is_parrying = true
+			parry_timer = PARRY_WINDOW
+			parry_cooldown_timer = PARRY_COOLDOWN
+
+			anim.speed_scale = 1.0
+			anim.play("Block")
+
+			print("Parry started!")
+
 	if Input.is_action_just_pressed("attack"):
-		if not is_hurt and not is_attacking and not is_climbing:
+
+		if (
+			not is_hurt
+			and not is_attacking
+			and not is_climbing
+			and not is_parrying
+		):
 			start_melee_attack()
 
 	var dir_x := Input.get_axis("Walk Backward", "Walk forward")
 	var dir_y := Input.get_axis("Jump", "ui_down")
-
-	if invuln_timer > 0.0:
-		invuln_timer = maxf(invuln_timer - delta, 0.0)
 
 	if is_on_floor():
 
@@ -222,7 +292,6 @@ func _physics_process(delta: float) -> void:
 		if velocity.y > max_fall_speed:
 			max_fall_speed = velocity.y
 
-	# Jump buffer
 	if Input.is_action_just_pressed("Jump"):
 		jump_buffer_timer = JUMP_BUFFER_TIME
 	else:
@@ -231,9 +300,9 @@ func _physics_process(delta: float) -> void:
 	if wall_jump_lock_timer > 0.0:
 		wall_jump_lock_timer -= delta
 
-	
 	var wants_to_climb := (
 		not is_attacking
+		and not is_parrying
 		and Input.is_action_pressed("climb")
 		and is_on_wall_only()
 		and stamina > 0.0
@@ -284,9 +353,8 @@ func _physics_process(delta: float) -> void:
 
 		if wall_jump_lock_timer <= 0.0:
 
-			if is_attacking:
+			if is_attacking or is_parrying:
 
-				# Keep player stationary during melee swing
 				velocity.x = move_toward(
 					velocity.x,
 					0.0,
@@ -311,7 +379,7 @@ func _physics_process(delta: float) -> void:
 					20.0
 				)
 
-	if jump_buffer_timer > 0.0 and not is_attacking:
+	if jump_buffer_timer > 0.0 and not is_attacking and not is_parrying:
 
 		if coyote_timer > 0.0:
 
@@ -358,8 +426,19 @@ func _physics_process(delta: float) -> void:
 
 func update_animations(dir_x: float, dir_y: float) -> void:
 
-	# Don't interrupt attack or hurt animations
-	if is_hurt or is_attacking:
+	if is_hurt:
+		return
+
+	if is_parrying:
+
+		anim.speed_scale = 1.0
+
+		if anim.animation != "Block":
+			anim.play("Block")
+
+		return
+
+	if is_attacking:
 		return
 
 	if is_climbing:
@@ -391,6 +470,7 @@ func update_animations(dir_x: float, dir_y: float) -> void:
 
 	else:
 		anim.play("JUMP_FALL")
+
 
 func _on_animation_finished() -> void:
 

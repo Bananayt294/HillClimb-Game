@@ -166,7 +166,7 @@ animations = [{
 }],
 "loop": 0,
 "name": &"Attack-2",
-"speed": 5.0
+"speed": 10.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -183,7 +183,7 @@ animations = [{
 }],
 "loop": 0,
 "name": &"Attack-3",
-"speed": 5.0
+"speed": 10.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -275,7 +275,7 @@ script = ExtResource("1_fnqv1")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Boss1" unique_id=629919593]
 position = Vector2(-1, -8)
 sprite_frames = SubResource("SpriteFrames_8upip")
-animation = &"Attack-3"
+animation = &"Attack-1"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Boss1" unique_id=342597628]
 position = Vector2(7, 7)
